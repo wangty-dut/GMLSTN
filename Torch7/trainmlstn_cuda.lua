@@ -125,8 +125,6 @@ local input_std = torch.cat(input_std11, input_std3, 2)
 local output_std1 = torch.cat(data_std[{{},{3}}], data_std[{{},{6}}],2)
 local output_std = torch.cat(output_std1, data_std[{{},{9}}],2)
 
---local output_std = data_norm[{{},{3}}]
-
 --define train_set and test_set
 local train_size = 600
 local trainX = torch.CudaTensor(train_size, opt.seq_length, input_size_all):zero()
@@ -138,7 +136,6 @@ for i = 1, train_size do
   end
 end
 local trainy = output_std[{{1+opt.seq_length-1,train_size+opt.seq_length-1},{}}]
---local trainy = output_std[{{1+opt.seq_length,train_size+opt.seq_length},{}}]
 
 local test_size = 200
 local testX = torch.CudaTensor(test_size, opt.seq_length, input_size_all):zero()
@@ -403,7 +400,6 @@ function eval_split(split_index, max_batches)
     rnn_state2[1] = rnn_state2[2]
     rnn_state3[0] = rnn_state3[1]
     loss = loss + clones3.criterion[CurrRnnIndx3]:forward(predictions3[CurrRnnIndx3], y[{{},{1}}])
-
   end
   return loss
 end
@@ -554,7 +550,6 @@ function feval(x)---------------------------------------------------------------
     for index = 1, #init_state3 do table.insert(rnn_state3[CurrRnnIndx3], lst3[index]) end
     predictions3[CurrRnnIndx3] = lst3[#lst3]
   end
-  --loss = loss / (opt.seq_length * JOINT_NUM)
   loss = clones3.criterion[CurrRnnIndx3]:forward(predictions3[CurrRnnIndx3], y[{{},{1}}])
 
   ------------------ backward pass -------------------
@@ -925,7 +920,6 @@ for i = 1, torch.floor(test_size/opt.batch_size) do
     end
     
     local control_gate = torch.zeros(opt.batch_size,opt.rnn_size):float():cuda()
-    --local control_gate = torch.ones(opt.batch_size,opt.rnn_size):float():cuda()
     for k = 1, opt.batch_size do
       if x[{k,t,6}] < x[{k,t,9}] then
         control_gate[{{k},{}}] = torch.ones(1,opt.rnn_size):float():cuda()
