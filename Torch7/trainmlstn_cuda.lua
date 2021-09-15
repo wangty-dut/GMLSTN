@@ -25,13 +25,13 @@ cmd:option('-num_layers', 1, 'number of layers in the LSTM') --
 --cmd:option('-model', 'stlstm3', 'lstm, gru or rnn')
 cmd:option('-model', 'stlstm1', 'stlstm2, or stlstm3')
 -- optimization
-cmd:option('-learning_rate', 2e-5, 'learning rate')  --2e-5, 0.0014655
+cmd:option('-learning_rate', 2e-5, 'learning rate')  --2e-5
 cmd:option('-learning_rate_decay', 0.998, 'learning rate decay')
 cmd:option('-learning_rate_decay_after', 50, 'in number of epochs, when to start decaying the learning rate')
 cmd:option('-decay_rate', 0.99, 'decay rate for rmsprop')
 cmd:option('-dropout', 0.0, 'dropout for regularization, used after each RNN hidden layer. 0 = no dropout') --0.0
-cmd:option('-seq_length', 1, 'number of timesteps to unroll for')   --
-cmd:option('-batch_size', 20, 'number of sequences to train on in parallel') --
+cmd:option('-seq_length', 1, 'number of timesteps to unroll for')   
+cmd:option('-batch_size', 20, 'number of sequences to train on in parallel') 
 cmd:option('-max_epochs', 2000, 'number of full passes through the training data')  --2000
 cmd:option('-grad_clip', 8, 'clip gradients at this value')
 cmd:option('-init_from', '', 'initialize network parameters from checkpoint at this path')
@@ -71,7 +71,7 @@ if opt.gpuid >= 0 and opt.opencl == 0 then
     end
 end
 
--------------------------------------------------------- Read data from CSV to tensor ----------------------------------------------------
+------------------------------- Read data from CSV to tensor ---------------------------------------------
 
 local csvFile = io.open('input1.csv', 'r')
 local header = csvFile:read()
@@ -151,14 +151,14 @@ for i = 1, test_size do
 end
 local testy = output_std[{{train_size+1+opt.seq_length-1,train_size+test_size+opt.seq_length-1},{}}]
 
----------------------------------------------------------------------------- define LSTM network -------------------------------------------------------------
+-------------------------------------------- define LSTM network -------------------------------------------------------------
 protos1 = {}
 protos2 = {}
 protos3 = {}
 protos1.rnn = STLSTM1.lstm(input_size, output_size, opt.rnn_size, opt.num_layers, opt.dropout)
 protos2.rnn = STLSTM2.lstm(input_size, output_size, opt.rnn_size, opt.num_layers, opt.dropout)
 protos3.rnn = STLSTM3.lstm(input_size, output_size, opt.rnn_size, opt.num_layers, opt.dropout)
---protos.rnn = STLSTM3.stlstm3(vocab_size, output_size, opt.rnn_size, opt.num_layers, opt.dropout)
+
 protos1.criterion = nn.MSECriterion()
 protos2.criterion = nn.MSECriterion()
 protos3.criterion = nn.MSECriterion()
@@ -199,10 +199,7 @@ if opt.gpuid >= 0 and opt.opencl == 0 then
     for k,v in pairs(protos3) do v:cuda() end
 end
 
--- put the above things into one flattened parameters tensor
 params, grad_params = model_utils.combine_all_parameters(protos1.rnn, protos2.rnn, protos3.rnn)
---params2, grad_params2 = model_utils.combine_all_parameters(protos2.rnn)
---params3, grad_params3 = model_utils.combine_all_parameters(protos3.rnn)
 
 -- initialization
 if do_random_init then
@@ -222,15 +219,15 @@ clones2 = {}
 clones3 = {}
 for name, proto in pairs(protos1) do
   print('cloning ' .. name)
-  clones1[name] = model_utils.clone_many_times(proto, opt.seq_length*(JOINT_NUM-1), not proto.parameters) -- the 3rd parameter is not used!
+  clones1[name] = model_utils.clone_many_times(proto, opt.seq_length*(JOINT_NUM-1), not proto.parameters)
 end
 for name, proto in pairs(protos2) do
   print('cloning ' .. name)
-  clones2[name] = model_utils.clone_many_times(proto, opt.seq_length*(JOINT_NUM-1), not proto.parameters) -- the 3rd parameter is not used!
+  clones2[name] = model_utils.clone_many_times(proto, opt.seq_length*(JOINT_NUM-1), not proto.parameters)
 end
 for name, proto in pairs(protos3) do
   print('cloning ' .. name)
-  clones3[name] = model_utils.clone_many_times(proto, opt.seq_length, not proto.parameters) -- the 3rd parameter is not used!
+  clones3[name] = model_utils.clone_many_times(proto, opt.seq_length, not proto.parameters)
 end
 
 -- preprocessing helper function
@@ -257,7 +254,7 @@ init_state_global3 = clone_list(init_state3)
 
 local current_training_batch_number = 0    --control the retrieve sample process
 
-function eval_split(split_index, max_batches) -- Note: Currently, this function can only be used for validation set---------------------------------------
+function eval_split(split_index, max_batches) 
   print('evaluating loss over split index ' .. split_index)
   local current_testing_batch_number = 0
   local loss = 0
@@ -274,7 +271,7 @@ function eval_split(split_index, max_batches) -- Note: Currently, this function 
 ------------------- forward pass -------------------
     local predictions1 = {}
     local predictions2 = {}
-    local predictions3 = {}          -- softmax outputs
+    local predictions3 = {}      
 
     local CurrRnnIndx1 = 0
     local CurrRnnIndx2 = 0
@@ -283,7 +280,7 @@ function eval_split(split_index, max_batches) -- Note: Currently, this function 
       CurrRnnIndx1 = CurrRnnIndx1 + 1
       CurrRnnIndx2 = CurrRnnIndx2 + 1
       CurrRnnIndx3 = CurrRnnIndx3 + 1
-      clones1.rnn[CurrRnnIndx1]:evaluate() -- make sure we are in correct mode (this is cheap, sets flag)
+      clones1.rnn[CurrRnnIndx1]:evaluate() 
       clones1.rnn[CurrRnnIndx1+1]:evaluate()
       clones2.rnn[CurrRnnIndx2]:evaluate()
       clones2.rnn[CurrRnnIndx2+1]:evaluate()
@@ -359,7 +356,6 @@ function eval_split(split_index, max_batches) -- Note: Currently, this function 
         preRnnIndex = CurrRnnIndx2 - 2
       end
       local control_gate = torch.zeros(opt.batch_size,opt.rnn_size):float():cuda()
-      --local control_gate = torch.ones(opt.batch_size,opt.rnn_size):float():cuda()
       for k = 1, opt.batch_size do
         if x[{k,t,6}] > x[{k,t,9}] then
           control_gate[{{k},{}}] = torch.ones(1,opt.rnn_size):float():cuda()
@@ -443,7 +439,7 @@ function feval(x)---------------------------------------------------------------
     CurrRnnIndx1 = CurrRnnIndx1 + 1
     CurrRnnIndx2 = CurrRnnIndx2 + 1
     CurrRnnIndx3 = CurrRnnIndx3 + 1
-    clones1.rnn[CurrRnnIndx1]:training() -- make sure we are in correct mode (this is cheap, sets flag)
+    clones1.rnn[CurrRnnIndx1]:training()
     clones1.rnn[CurrRnnIndx1+1]:training()
     clones2.rnn[CurrRnnIndx2]:training()
     clones2.rnn[CurrRnnIndx2+1]:training()
@@ -493,7 +489,6 @@ function feval(x)---------------------------------------------------------------
     end
     
     local control_gate = torch.zeros(opt.batch_size,opt.rnn_size):float():cuda()
-    --local control_gate = torch.ones(opt.batch_size,opt.rnn_size):float():cuda()
     for k = 1, opt.batch_size do
       if x[{k,t,6}] < x[{k,t,9}] then
         control_gate[{{k},{}}] = torch.ones(1,opt.rnn_size):float():cuda()
@@ -520,7 +515,6 @@ function feval(x)---------------------------------------------------------------
     end
     
     local control_gate = torch.zeros(opt.batch_size,opt.rnn_size):float():cuda()
-    --local control_gate = torch.ones(opt.batch_size,opt.rnn_size):float():cuda()
     for k = 1, opt.batch_size do
       if x[{k,t,6}] > x[{k,t,9}] then
         control_gate[{{k},{}}] = torch.ones(1,opt.rnn_size):float():cuda()
@@ -544,8 +538,6 @@ function feval(x)---------------------------------------------------------------
     
     local control_gate1 = torch.zeros(opt.batch_size, opt.rnn_size):float():cuda()
     local control_gate2 = torch.zeros(opt.batch_size, opt.rnn_size):float():cuda()
-    --local control_gate1 = torch.ones(opt.batch_size, opt.rnn_size):float():cuda()
-    --local control_gate2 = torch.ones(opt.batch_size, opt.rnn_size):float():cuda()
     for k = 1, opt.batch_size do
       if x[{k,t,6}] < x[{k,t,9}] then
         control_gate1[{{k},{}}] = torch.ones(1, opt.rnn_size):float():cuda()
@@ -576,10 +568,10 @@ function feval(x)---------------------------------------------------------------
     drnn_state1[i] = clone_list(init_state1, true) -- true also zeros the clones
   end
   for i = 0, (opt.seq_length * (JOINT_NUM-1)) do
-    drnn_state2[i] = clone_list(init_state2, true) -- true also zeros the clones
+    drnn_state2[i] = clone_list(init_state2, true)
   end
   for i = 0, (opt.seq_length) do
-    drnn_state3[i] = clone_list(init_state3, true) -- true also zeros the clones
+    drnn_state3[i] = clone_list(init_state3, true)
   end
 
   local CurrRnnIndx1 = opt.seq_length * (JOINT_NUM-1)
@@ -600,8 +592,6 @@ function feval(x)---------------------------------------------------------------
     --if preRnnIndex == 0 then random_list(init_state_global) end
     local control_gate1 = torch.zeros(opt.batch_size, opt.rnn_size):float():cuda()
     local control_gate2 = torch.zeros(opt.batch_size, opt.rnn_size):float():cuda()
-    --local control_gate1 = torch.ones(opt.batch_size, opt.rnn_size):float():cuda()
-    --local control_gate2 = torch.ones(opt.batch_size, opt.rnn_size):float():cuda()
     for k = 1, opt.batch_size do
       if x[{k,t,6}] < x[{k,t,9}] then
         control_gate1[{{k},{}}] = torch.ones(1, opt.rnn_size):float():cuda()
@@ -623,48 +613,22 @@ function feval(x)---------------------------------------------------------------
     local dlst3 = clones3.rnn[CurrRnnIndx3]:backward(tempInput3, drnn_state3[CurrRnnIndx3])
 
     for index = 1, #init_state3 do
-      drnn_state3[preRnnIndex][index] = drnn_state3[preRnnIndex][index] + 20*dlst3[index+7]                --temporal
+      drnn_state3[preRnnIndex][index] = drnn_state3[preRnnIndex][index] + dlst3[index+7]                --temporal
     end
     
     for k = 1, opt.batch_size do
       if x[{k,t,6}] < x[{k,t,9}] then
         for index = 1, #init_state2 do
-          drnn_state2[CurrRnnIndx2-1][index][k] = drnn_state2[CurrRnnIndx2-1][index][k] + 20*dlst3[index+3+(#init_state3)][k]     --spatial
+          drnn_state2[CurrRnnIndx2-1][index][k] = drnn_state2[CurrRnnIndx2-1][index][k] + dlst3[index+3+(#init_state3)][k]     --spatial
         end
       else
         for index = 1, #init_state2 do
-          drnn_state2[CurrRnnIndx2][index][k] = drnn_state2[CurrRnnIndx2][index][k] + 20*dlst3[index+3+(#init_state3)+(#init_state2)][k]    --spatial
+          drnn_state2[CurrRnnIndx2][index][k] = drnn_state2[CurrRnnIndx2][index][k] + dlst3[index+3+(#init_state3)+(#init_state2)][k]    --spatial
         end
       end
     end
-    --[[for index = 1, #init_state2 do
-      drnn_state2[CurrRnnIndx2-1][index] = drnn_state2[CurrRnnIndx2-1][index] + dlst3[index+3+(#init_state3)]
-      drnn_state2[CurrRnnIndx2][index]= drnn_state2[CurrRnnIndx2][index] + dlst3[index+3+(#init_state3)+(#init_state2)]
-    end]]
-    
-    
-    
-    --[[for k = 1, opt.batch_size do
-      if x[{k,t,6}] < x[{k,t,9}] then
-        for index = 1, #init_state2 do
-          drnn_state2[CurrRnnIndx2-1][index][k] = drnn_state2[CurrRnnIndx2-1][index][k] + dlst3[index+1+(#init_state3)][k]
-        end
-        for index = 1, #init_state1 do
-          drnn_state1[CurrRnnIndx1-1][index][k] = drnn_state1[CurrRnnIndx1-1][index][k] + dlst3[index+1+(#init_state3)+(#init_state2)][k]
-        end
-      else
-        for index = 1, #init_state2 do
-          drnn_state2[CurrRnnIndx2][index][k] = drnn_state2[CurrRnnIndx2][index][k] + dlst3[index+1+(#init_state3)][k]
-        end
-        for index = 1, #init_state1 do
-          drnn_state1[CurrRnnIndx1][index][k] = drnn_state1[CurrRnnIndx1][index][k] + dlst3[index+1+(#init_state3)+(#init_state2)][k]
-        end
-      end
-    end]]
 
     --for rnn type2----------------------------------
-    --local doutput_t = clones2.criterion[CurrRnnIndx2]:backward(predictions2[CurrRnnIndx2], y)
-    --local doutput_t = clones2.criterion[CurrRnnIndx2]:backward(predictions3[CurrRnnIndx3], y[{{},{1}}])
     local doutput_t = clones2.criterion[CurrRnnIndx2]:backward(predictions2[CurrRnnIndx2], y[{{},{2}}])
     table.insert(drnn_state2[CurrRnnIndx2], doutput_t) -- drnn includes two part: 1) from t + 1, 2) from criterion
     assert (#(drnn_state2[CurrRnnIndx2]) == (#init_state2)+1)
@@ -682,7 +646,6 @@ function feval(x)---------------------------------------------------------------
     end
     
     local control_gate = torch.zeros(opt.batch_size,opt.rnn_size):float():cuda()
-    --local control_gate = torch.ones(opt.batch_size,opt.rnn_size):float():cuda()
     for k = 1, opt.batch_size do
       if x[{k,t,6}] > x[{k,t,9}] then
         control_gate[{{k},{}}] = torch.ones(1,opt.rnn_size):float():cuda()
@@ -694,39 +657,19 @@ function feval(x)---------------------------------------------------------------
     for k, v in ipairs(rnn_state1[CurrRnnIndx1]) do table.insert(tempInput22, v) end --spatial1
     local dlst22 = clones2.rnn[CurrRnnIndx2]:backward(tempInput22, drnn_state2[CurrRnnIndx2])
     
-    --[[for index = 1, #init_state2 do
-      drnn_state2[preRnnIndex][index][1] = drnn_state2[preRnnIndex][index][1] + 15*dlst22[index+2][1]
-    end
-    for k = 1, opt.batch_size do 
-      if k > 1 and (x[{k,t,4}]~=x[{k-1,t,4}] or x[{k,t,5}]~=x[{k-1,t,5}]) then--and torch.sign((10000-temp[{{k-1},{}}]))==1 then 
-        if (100-(y[{k,2}]*std_v+mean_v))>0 then 
-          for index = 1, #init_state2 do
-            drnn_state2[preRnnIndex][index][k] = drnn_state2[preRnnIndex][index][k] + 15*dlst22[index+2][k]
-          end
-        end
-      end
-    end]]
-    
     for index = 1, #init_state2 do    ---perform the best
-      drnn_state2[preRnnIndex][index] = drnn_state2[preRnnIndex][index] + 20*dlst22[index+2]   --temporal
-    end
-    
+      drnn_state2[preRnnIndex][index] = drnn_state2[preRnnIndex][index] + dlst22[index+2]   --temporal
+    end    
     
     for k = 1, opt.batch_size do
       if x[{k,t,6}] > x[{k,t,9}] then
         for index = 1, #init_state1 do
-          drnn_state1[CurrRnnIndx1][index][k] = drnn_state1[CurrRnnIndx1][index][k] + 20*dlst22[index+2+(#init_state2)][k]      --spatial
+          drnn_state1[CurrRnnIndx1][index][k] = drnn_state1[CurrRnnIndx1][index][k] + dlst22[index+2+(#init_state2)][k]      --spatial
         end
       end
     end
-    --[[for index = 1, #init_state2 do  
-      drnn_state1[CurrRnnIndx1][index]= drnn_state1[CurrRnnIndx1][index]+ dlst22[index+2+(#init_state2)]
-    end]]
-    
     
     -----------------------------
-    --local doutput_t = clones2.criterion[CurrRnnIndx2-1]:backward(predictions2[CurrRnnIndx2-1], y)
-    --local doutput_t = clones2.criterion[CurrRnnIndx2-1]:backward(predictions3[CurrRnnIndx3], y[{{},{1}}])
     local doutput_t = clones2.criterion[CurrRnnIndx2-1]:backward(predictions2[CurrRnnIndx2-1], y[{{},{3}}])
     table.insert(drnn_state2[CurrRnnIndx2-1], doutput_t) -- drnn includes two part: 1) from t + 1, 2) from criterion
     assert (#(drnn_state2[CurrRnnIndx2-1]) == (#init_state2)+1)
@@ -735,7 +678,6 @@ function feval(x)---------------------------------------------------------------
 
     local tempInput21 = {}
     table.insert(tempInput21, inputX21)
-    --if preRnnIndex == 0 then random_list(init_state_global) end
 
     if t == 1 then              
       preRnnIndex = 0
@@ -744,7 +686,6 @@ function feval(x)---------------------------------------------------------------
     end
     
     local control_gate = torch.zeros(opt.batch_size,opt.rnn_size):float():cuda()
-    --local control_gate = torch.ones(opt.batch_size,opt.rnn_size):float():cuda()
     for k = 1, opt.batch_size do
       if x[{k,t,6}] < x[{k,t,9}] then
         control_gate[{{k},{}}] = torch.ones(1,opt.rnn_size):float():cuda()
@@ -756,38 +697,19 @@ function feval(x)---------------------------------------------------------------
     for k, v in ipairs(rnn_state1[CurrRnnIndx1-1]) do table.insert(tempInput21, v) end --spatial1
     local dlst21 = clones2.rnn[CurrRnnIndx2-1]:backward(tempInput21, drnn_state2[CurrRnnIndx2-1])
     
-    --[[for index = 1, #init_state2 do
-      drnn_state2[preRnnIndex][index][1] = drnn_state2[preRnnIndex][index][1] + dlst21[index+2][1]
-    end
-    for k = 1, opt.batch_size do
-      if k > 1 and (x[{k,t,7}]~=x[{k-1,t,7}] or x[{k,t,8}]~=x[{k-1,t,8}]) then --and torch.sign((10000-temp[{{k-1},{}}]))==1 then
-        if (100-(y[{k,3}]*std_v+mean_v))>0 then
-          for index = 1, #init_state2 do
-            drnn_state2[preRnnIndex][index][k] = drnn_state2[preRnnIndex][index][k] + dlst21[index+2][k]
-          end
-        end
-      end
-    end]]
-    
     for index = 1, #init_state2 do
-      drnn_state2[preRnnIndex][index] = drnn_state2[preRnnIndex][index] + 20*dlst21[index+2]    --templaral
+      drnn_state2[preRnnIndex][index] = drnn_state2[preRnnIndex][index] + dlst21[index+2]    --templaral
     end
     
     for k = 1, opt.batch_size do
       if x[{k,t,6}] < x[{k,t,9}] then
         for index = 1, #init_state1 do
-          drnn_state1[CurrRnnIndx1-1][index][k] = drnn_state1[CurrRnnIndx1-1][index][k] + 20*dlst21[index+2+(#init_state2)][k]     --spatial
+          drnn_state1[CurrRnnIndx1-1][index][k] = drnn_state1[CurrRnnIndx1-1][index][k] + dlst21[index+2+(#init_state2)][k]     --spatial
         end
       end
-    end
-    --[[for index = 1, #init_state2 do
-      drnn_state1[CurrRnnIndx1-1][index]= drnn_state1[CurrRnnIndx1-1][index] + dlst21[index+2+(#init_state2)]
-    end]]
-    
+    end    
 
     --for rnn type1----------------------------------
-    --local doutput_t = clones1.criterion[CurrRnnIndx1]:backward(predictions1[CurrRnnIndx1], y)
-    --local doutput_t = clones1.criterion[CurrRnnIndx1]:backward(predictions3[CurrRnnIndx3], y[{{},{1}}])
     local doutput_t = clones1.criterion[CurrRnnIndx1]:backward(predictions1[CurrRnnIndx1], y[{{},{3}}])
     table.insert(drnn_state1[CurrRnnIndx1], doutput_t) -- drnn includes two part: 1) from t + 1, 2) from criterion
     assert (#(drnn_state1[CurrRnnIndx1]) == (#init_state1)+1)
@@ -804,26 +726,11 @@ function feval(x)---------------------------------------------------------------
     for k, v in ipairs(rnn_state1[preRnnIndex]) do table.insert(tempInput12, v) end  --temporal
     local dlst12 = clones1.rnn[CurrRnnIndx1]:backward(tempInput12, drnn_state1[CurrRnnIndx1])
     
-    --[[for index = 1, #init_state1 do
-      drnn_state1[preRnnIndex][index][1] = drnn_state1[preRnnIndex][index][1] + 15*dlst12[index+1][1]
-    end
-    for k = 1, opt.batch_size do
-      if k > 1 and (x[{k,t,7}]~=x[{k-1,t,7}] or x[{k,t,8}]~=x[{k-1,t,8}]) then --and torch.sign((10000-temp[{{k-1},{}}]))==1 then
-        if (100-(y[{k,3}]*std_v+mean_v))>0 then
-          for index = 1, #init_state1 do
-            drnn_state1[preRnnIndex][index][k] = drnn_state1[preRnnIndex][index][k] + 15*dlst12[index+1][k]
-          end
-        end
-      end
-    end]]
-    
     for index = 1, #init_state1 do
-      drnn_state1[preRnnIndex][index] = drnn_state1[preRnnIndex][index] + 20*dlst12[index+1]          --temporal
+      drnn_state1[preRnnIndex][index] = drnn_state1[preRnnIndex][index] + dlst12[index+1]          --temporal
     end
     
     ---------------------------
-    --local doutput_t = clones1.criterion[CurrRnnIndx1-1]:backward(predictions1[CurrRnnIndx1-1], y)
-    --local doutput_t = clones1.criterion[CurrRnnIndx1-1]:backward(predictions3[CurrRnnIndx3], y[{{},{1}}])
     local doutput_t = clones1.criterion[CurrRnnIndx1-1]:backward(predictions1[CurrRnnIndx1-1], y[{{},{2}}])
     table.insert(drnn_state1[CurrRnnIndx1-1], doutput_t) -- drnn includes two part: 1) from t + 1, 2) from criterion
     assert (#(drnn_state1[CurrRnnIndx1-1]) == (#init_state1)+1)
@@ -839,22 +746,9 @@ function feval(x)---------------------------------------------------------------
     end
     for k, v in ipairs(rnn_state1[preRnnIndex]) do table.insert(tempInput11, v) end  --temporal
     local dlst11 = clones1.rnn[CurrRnnIndx1-1]:backward(tempInput11, drnn_state1[CurrRnnIndx1-1])
-    
-    --[[for index = 1, #init_state1 do
-      drnn_state1[preRnnIndex][index][1] = drnn_state1[preRnnIndex][index][1] + 15*dlst11[index+1][1]
-    end
-    for k = 1, opt.batch_size do
-      if k > 1 and (x[{k,t,4}]~=x[{k-1,t,4}] or x[{k,t,5}]~=x[{k-1,t,5}]) then
-        if (100-(y[{k,2}]*std_v+mean_v))>0 then
-          for index = 1, #init_state1 do
-            drnn_state1[preRnnIndex][index][k] = drnn_state1[preRnnIndex][index][k] + 15*dlst11[index+1][k]
-          end
-        end
-      end
-    end]]
-    
+
     for index = 1, #init_state1 do
-      drnn_state1[preRnnIndex][index] = drnn_state1[preRnnIndex][index] + 20*dlst11[index+1]     --temporal
+      drnn_state1[preRnnIndex][index] = drnn_state1[preRnnIndex][index] + dlst11[index+1]     --temporal
     end
 
     CurrRnnIndx3 = CurrRnnIndx3 - 1
@@ -864,10 +758,6 @@ function feval(x)---------------------------------------------------------------
 
 ------------------------ misc ----------------------
 -- transfer final state to initial state (BPTT)
-
--- init_state_global = rnn_state[#rnn_state] --
---grad_params:div(opt.seq_length * JOINT_NUM) -- this line should be here but since we use rmsprop it would have no effect. Removing for efficiency
--- clip gradient element-wise
   init_state_global11 = clone_list(rnn_state1[1]) --
   init_state_global12 = clone_list(rnn_state1[2]) --
   init_state_global21 = clone_list(rnn_state2[1]) --
@@ -926,11 +816,6 @@ for i = (opt.startingiter or 1), (iterations + 1) do
     local _, loss = optim.rmsprop(feval, params, optim_state)
     --local _, loss = optim.adam(feval, params, optim_state)
         if opt.accurate_gpu_timing == 1 and opt.gpuid >= 0 then
-			--[[
-			Note on timing: The reported time can be off because the GPU is invoked async. If one
-			wants to have exactly accurate timings one must call cutorch.synchronize() right here.
-			I will avoid doing so by default because this can incur computational overhead.
-			--]]
 			cutorch.synchronize()
 		end
     local time = timer:time().real
@@ -955,7 +840,7 @@ for i = (opt.startingiter or 1), (iterations + 1) do
 
     -- handle early stopping if things are going really bad
     if loss[1] ~= loss[1] then
-      print('loss is NaN.  This usually indicates a bug.  Please check the issues page for existing issues, or create a new issue, if none exist.  Ideally, please state: your operating system, 32-bit/64-bit, your blas version, cpu/cuda/cl?')
+      print('loss is NaN.')
       break -- halt
     end
     if loss0 == nil then loss0 = loss[1] end
@@ -965,18 +850,6 @@ for i = (opt.startingiter or 1), (iterations + 1) do
     end
   end
 end
-
---[[gnuplot.figure(1)
-gnuplot.plot(torch.Tensor(train_losses_epoch))
-gnuplot.title('train loss epoch')
-
-gnuplot.figure(2)
-gnuplot.plot(torch.Tensor(val_losses))
-gnuplot.title('test loss')
-
-gnuplot.figure(3)
-gnuplot.plot(torch.Tensor(train_losses))
-gnuplot.title('train loss')]]
 
 ----------------------------------------------------start test here-----------------------------------------------------
 local current_testing_batch_number = 0
@@ -996,7 +869,7 @@ for i = 1, torch.floor(test_size/opt.batch_size) do
 ------------------- forward pass -------------------
   local predictions1 = {}
   local predictions2 = {}
-  local predictions3 = {}              -- softmax outputs
+  local predictions3 = {}        
 
   local CurrRnnIndx1 = 0
   local CurrRnnIndx2 = 0
@@ -1031,7 +904,6 @@ for i = 1, torch.floor(test_size/opt.batch_size) do
     local inputX12 = x[{{},{t},{7,8}}]:contiguous():view(opt.batch_size, input_size)
     local tempInput12 = {}
     table.insert(tempInput12, inputX12)
-    --define preRnnIndex
     if t == 1 then              
       preRnnIndex = 1
     else
@@ -1082,7 +954,6 @@ for i = 1, torch.floor(test_size/opt.batch_size) do
     end
     
     local control_gate = torch.zeros(opt.batch_size,opt.rnn_size):float():cuda()
-    --local control_gate = torch.ones(opt.batch_size,opt.rnn_size):float():cuda()
     for k = 1, opt.batch_size do
       if x[{k,t,6}] > x[{k,t,9}] then
         control_gate[{{k},{}}] = torch.ones(1,opt.rnn_size):float():cuda()
@@ -1101,13 +972,11 @@ for i = 1, torch.floor(test_size/opt.batch_size) do
     local inputX3 = x[{{},{t},{1,2}}]:contiguous():view(opt.batch_size, input_size)
     local tempInput3 = {}
     table.insert(tempInput3, inputX3)
-    --define preRnnIndex
     preRnnIndex = CurrRnnIndx3 - 1
     
     local control_gate1 = torch.zeros(opt.batch_size, opt.rnn_size):float():cuda()
     local control_gate2 = torch.zeros(opt.batch_size, opt.rnn_size):float():cuda()
-    --local control_gate1 = torch.ones(opt.batch_size, opt.rnn_size):float():cuda()
-    --local control_gate2 = torch.ones(opt.batch_size, opt.rnn_size):float():cuda()
+
     for k = 1, opt.batch_size do
       if x[{k,t,6}] < x[{k,t,9}] then
         control_gate1[{{k},{}}] = torch.ones(1, opt.rnn_size):float():cuda()
@@ -1137,13 +1006,10 @@ for i = 1, torch.floor(test_size/opt.batch_size) do
   local endindex = current_testing_batch_number * opt.batch_size
   pred_results[{{startindex,endindex},{}}] = predictions3[CurrRnnIndx3]
 end
---print(pred_results)
---print(testy)
+
 print(loss)
 local testy = testy*std_v + mean_v
 local pred_results = pred_results*std_v + mean_v
-
---[[gnuplot.plot({pred_results[{{1,test_size},{}}]},{testy[{{1,test_size},{1}}]})]]
 
 --write the result in csv file
 subtensor = torch.cat(pred_results[{{1,test_size},{}}], testy[{{1,test_size},{1}}], 2)
