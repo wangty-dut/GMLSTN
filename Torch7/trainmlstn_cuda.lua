@@ -379,8 +379,6 @@ function eval_split(split_index, max_batches)
       
       local control_gate1 = torch.zeros(opt.batch_size, opt.rnn_size):float():cuda()
       local control_gate2 = torch.zeros(opt.batch_size, opt.rnn_size):float():cuda()
-      --local control_gate1 = torch.ones(opt.batch_size, opt.rnn_size):float():cuda()
-      --local control_gate2 = torch.ones(opt.batch_size, opt.rnn_size):float():cuda()
       for k = 1, opt.batch_size do
         if x[{k,t,6}] < x[{k,t,9}] then
           control_gate1[{{k},{}}] = torch.ones(1, opt.rnn_size):float():cuda()
