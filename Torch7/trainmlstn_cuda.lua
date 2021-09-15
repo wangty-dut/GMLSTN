@@ -22,7 +22,6 @@ cmd:text('Options')
 -- model params
 cmd:option('-rnn_size', 128, 'size of LSTM internal state')
 cmd:option('-num_layers', 1, 'number of layers in the LSTM') --
---cmd:option('-model', 'stlstm3', 'lstm, gru or rnn')
 cmd:option('-model', 'stlstm1', 'stlstm2, or stlstm3')
 -- optimization
 cmd:option('-learning_rate', 2e-5, 'learning rate')  --2e-5
